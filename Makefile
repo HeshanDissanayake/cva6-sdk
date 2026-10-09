@@ -35,6 +35,8 @@ UIMAGE_LOAD_ADDRESS := 0x80200000
 UIMAGE_ENTRY_POINT  := 0x80200000
 endif
 
+
+
 # default configure flags
 tests-co              = --prefix=$(RISCV)/target
 
@@ -142,7 +144,7 @@ SDDEVICE_PART2 = $(shell lsblk $(SDDEVICE) -no PATH | head -3 | tail -1)
 UIMAGE_SECTORSTART := 512M
 flash-sdcard: format-sd
 	dd if=$(RISCV)/fw_payload.bin of=$(SDDEVICE_PART1) status=progress oflag=sync bs=1M
-	dd if=$(RISCV)/uImage         of=$(SDDEVICE_PART2) status=progress oflag=sync bs=1M
+	dd if=$(RISCV)/h         of=$(SDDEVICE_PART2) status=progress oflag=sync bs=1M
 
 format-sd: $(SDDEVICE)
 	@test -n "$(SDDEVICE)" || (echo 'SDDEVICE must be set, Ex: make flash-sdcard SDDEVICE=/dev/sdc' && exit 1)
@@ -154,8 +156,29 @@ vmlinux: $(RISCV)/vmlinux
 fw_payload.bin: $(RISCV)/fw_payload.bin
 uImage: $(RISCV)/uImage
 spike_payload: $(RISCV)/spike_fw_payload.elf
-
 images: $(CC) $(RISCV)/fw_payload.bin $(RISCV)/uImage
+
+
+send-files:	
+	../scripts/scp.sh install64/fw_payload.bin /home/heshds/working_dir/cva6-sdk/install64/fw_payload.bin
+	../scripts/scp.sh install64/uImage /home/heshds/working_dir/cva6-sdk/install64/uImage 
+
+rebuild:
+	make clean
+	cp -r cva6-sdk-mods/home rootfs
+	make images
+	make spike_payload
+	
+rebuild-n-spike:
+	make clean
+	cp -r cva6-sdk-mods/home rootfs
+	make images
+	make spike_payload
+	make run-spike
+
+run-spike:
+	/home/heshds/working_dir/cva6-sdk/install64/bin/spike --log=spike_log.txt $(RISCV)/spike_fw_payload.elf
+
 
 clean:
 	rm -rf $(RISCV)/vmlinux cachetest/*.elf rootfs/tetris rootfs/cachetest.elf
@@ -182,7 +205,7 @@ help:
 	@echo "    where tool can be any one of:"
 	@echo "        gcc isa-sim tests"
 	@echo ""
-	@echo "build linux images for cva6"
+	@echo "build linux images for cva6" 
 	@echo "        make images"
 	@echo "    for specific artefact"
 	@echo "        make [vmlinux|uImage|fw_payload.bin]"
